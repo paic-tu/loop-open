@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,9 @@ const schema = z
 const selectClass =
   "h-11 w-full rounded-xl border border-slate-300 bg-white text-slate-800 placeholder:text-slate-400 px-3 text-sm font-semibold";
 
+const ENTITY_DOC_MAX_MB = 10;
+const ENTITY_DOC_ACCEPT = ".pdf,image/*";
+
 export function CommunityRegisterForm() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -53,6 +57,8 @@ export function CommunityRegisterForm() {
   const [fieldValue, setFieldValue] = useState("");
   const [otherField, setOtherField] = useState("");
   const [agree, setAgree] = useState(false);
+  const [licenseDoc, setLicenseDoc] = useState<File | null>(null);
+  const licenseFileRef = useRef<HTMLInputElement>(null);
 
   const myEntity = useQuery({
     queryKey: ["community-entity", user?.id],
@@ -85,6 +91,20 @@ export function CommunityRegisterForm() {
         setErrors((previous) => ({ ...previous, terms: "يجب الموافقة على الشروط والأحكام" }));
         throw new Error("validation");
       }
+      if (!licenseDoc && !entity?.license_document_path) {
+        setErrors((previous) => ({
+          ...previous,
+          license_document: "يرجى إرفاق نسخة من السجل التجاري أو الترخيص",
+        }));
+        throw new Error("validation");
+      }
+      if (licenseDoc && licenseDoc.size > ENTITY_DOC_MAX_MB * 1024 * 1024) {
+        setErrors((previous) => ({
+          ...previous,
+          license_document: `حجم الملف أكبر من ${ENTITY_DOC_MAX_MB} ميجابايت`,
+        }));
+        throw new Error("validation");
+      }
       const fd = new FormData(form);
       const rawField = String(fd.get("field") ?? "");
       const parsed = schema.safeParse({
@@ -106,11 +126,42 @@ export function CommunityRegisterForm() {
         throw new Error("validation");
       }
       setErrors({});
+
+      let licenseDocPath: string | null = entity?.license_document_path ?? null;
+      if (licenseDoc) {
+        const safeName = licenseDoc.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user!.id}/${Date.now()}-${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("entity-documents")
+          .upload(path, licenseDoc, {
+            contentType: licenseDoc.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadErr) {
+          toast.error("تعذر رفع ملف الترخيص، حاول مرة أخرى");
+          throw uploadErr;
+        }
+        licenseDocPath = path;
+      }
+
       const { field, field_other, ...rest } = parsed.data;
       const effectiveField = field === OTHER_FIELD ? (field_other ?? "").trim() : field;
+      const nextStatus =
+        entity?.is_verified || entity?.document_status === "verified"
+          ? "verified"
+          : "pending_verification";
       const { data, error } = await supabase
         .from("community_entities")
-        .upsert({ ...rest, field: effectiveField, user_id: user!.id }, { onConflict: "user_id" })
+        .upsert(
+          {
+            ...rest,
+            field: effectiveField,
+            user_id: user!.id,
+            license_document_path: licenseDocPath,
+            document_status: nextStatus,
+          },
+          { onConflict: "user_id" }
+        )
         .select("id")
         .single();
       if (error) throw error;
@@ -125,12 +176,22 @@ export function CommunityRegisterForm() {
         action: "project_owner.registered",
         entityType: "community_entity",
         entityId: data.id,
-        meta: { entity_name: rest.entity_name },
+        meta: { entity_name: rest.entity_name, document_status: nextStatus },
       });
     },
     onSuccess: () => {
-      toast.success("تم إرسال بيانات صاحب المشروع والتحقق منها");
+      const justVerified =
+        entity?.is_verified || entity?.document_status === "verified";
+      if (justVerified) {
+        toast.success("تم تحديث بيانات صاحب المشروع بنجاح");
+      } else {
+        toast.success(
+          "تم إرسال البيانات ورفع الوثيقة — بانتظار مراجعة اعتماد الإدارة"
+        );
+      }
       setAgree(false);
+      setLicenseDoc(null);
+      if (licenseFileRef.current) licenseFileRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["community-entity", user?.id] });
       queryClient.invalidateQueries({ queryKey: ["community-directory"] });
     },
@@ -150,6 +211,29 @@ export function CommunityRegisterForm() {
           </p>
           <p className="mt-3 text-xs text-slate-500">{entity.verification_note}</p>
         </div>
+      </div>
+    );
+  }
+
+  if (entity && (entity.document_status === "pending_verification" || entity.license_document_path)) {
+    return (
+      <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-7">
+        <h3 className="text-lg font-extrabold text-amber-800 dark:text-amber-300">
+          ملف صاحب المشروع قيد المراجعة والاعتماد
+        </h3>
+        <p className="mt-2 text-sm font-bold">
+          {entity.entity_name} — {entity.entity_type}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+          تم استلام طلب التسجيل ورفع وثيقة الترخيص، والآن يتم مراجعتها يدوياً من قبل فريق
+          أوبن لوب للتأكد من صحة البيانات. سيتم تفعيل ملفك في الدليل وإعلامك بعد
+          الاعتماد.
+        </p>
+        {entity.verification_note ? (
+          <p className="mt-3 rounded-xl bg-white/60 p-3 text-xs font-bold text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">
+            ملاحظة الإدارة: {entity.verification_note}
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -197,6 +281,62 @@ export function CommunityRegisterForm() {
           onChange={(e) => setLicense(e.target.value)}
           placeholder="1010XXXXXX"
         />
+      </Field>
+
+      <Field
+        label="نسخة من الترخيص أو السجل التجاري"
+        error={errors["license_document"]}
+      >
+        <div className="rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+          <input
+            ref={licenseFileRef}
+            type="file"
+            accept={ENTITY_DOC_ACCEPT}
+            className="hidden"
+            onChange={(e) => setLicenseDoc(e.target.files?.[0] ?? null)}
+          />
+          {!licenseDoc ? (
+            <button
+              type="button"
+              onClick={() => licenseFileRef.current?.click()}
+              className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-slate-700"
+            >
+              <span className="flex items-center gap-2">
+                <FileUp className="h-4 w-4 text-indigo-600" />
+                اضغط لرفع الملف
+              </span>
+              <span className="text-xs font-bold text-slate-400">
+                PDF أو صورة، الحد {ENTITY_DOC_MAX_MB}MB
+              </span>
+            </button>
+          ) : (
+            <div className="flex w-full items-center justify-between gap-3">
+              <div className="min-w-0 text-sm font-semibold text-slate-700">
+                <div className="truncate">{licenseDoc.name}</div>
+                <div className="text-xs font-bold text-slate-400">
+                  {(licenseDoc.size / 1024 / 1024).toFixed(2)} ميجابايت
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="إزالة الملف"
+                onClick={() => {
+                  setLicenseDoc(null);
+                  if (licenseFileRef.current) licenseFileRef.current.value = "";
+                }}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+        {entity?.license_document_path && !licenseDoc ? (
+          <p className="mt-1.5 text-xs font-bold text-primary dark:text-gold">
+            تم رفع وثيقة سابقاً — يمكنك تركها كما هي أو رفع ملف جديد للتحديث.
+          </p>
+        ) : null}
       </Field>
 
       <Field label="اسم الكيان (كما في الترخيص)" error={errors["entity_name"]}>
@@ -286,8 +426,9 @@ export function CommunityRegisterForm() {
           {submit.isPending ? "جارٍ التحقق..." : "تحقق وسجّل كصاحب مشروع"}
         </Button>
         <p className="mt-3 text-xs text-slate-500">
-          يتم التحقق آلياً من رقم الترخيص / السجل التجاري، وعند نجاح التحقق يُعتمد ملف صاحب المشروع
-          مباشرة ويظهر في دليل المجتمع.
+          بعد تقديم البيانات ورفع نسخة من الترخيص أو السجل، سيتم مراجعة الطلب يدوياً من قبل
+          فريق أوبن لوب خلال 24-48 ساعة، وبعد الاعتماد سيظهر ملفك في دليل المجتمع وستتمكن
+          من طرح فرص عرض الأسعار (RFQ).
         </p>
       </div>
     </form>

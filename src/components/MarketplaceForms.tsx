@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { FileUp, X } from "lucide-react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { FormField } from "@/components/RfqBoard";
@@ -23,6 +24,9 @@ import {
 
 const selectClass =
   "h-11 w-full rounded-xl border border-slate-300 bg-white text-slate-800 placeholder:text-slate-400 px-3 text-sm font-semibold";
+
+const SUPPLIER_DOC_MAX_MB = 10;
+const SUPPLIER_DOC_ACCEPT = ".pdf,image/*";
 
 const supplierSchema = z.object({
   company_name: z.string().trim().min(3, "اسم المنشأة مطلوب").max(160),
@@ -302,7 +306,8 @@ function SupplierForm() {
   const queryClient = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [agree, setAgree] = useState(false);
-
+  const [crDoc, setCrDoc] = useState<File | null>(null);
+  const crFileRef = useRef<HTMLInputElement>(null);
 
   const mine = useQuery({
     queryKey: ["supplier", user?.id],
@@ -315,6 +320,13 @@ function SupplierForm() {
     mutationFn: async (form: HTMLFormElement) => {
       if (!agree) {
         setErrors((prev) => ({ ...prev, terms: "يجب الموافقة على الشروط والأحكام" }));
+        throw new Error("validation");
+      }
+      if (crDoc && crDoc.size > SUPPLIER_DOC_MAX_MB * 1024 * 1024) {
+        setErrors((prev) => ({
+          ...prev,
+          cr_document: `حجم الملف أكبر من ${SUPPLIER_DOC_MAX_MB} ميجابايت`,
+        }));
         throw new Error("validation");
       }
       const fd = new FormData(form);
@@ -334,11 +346,46 @@ function SupplierForm() {
         setErrors(next);
         throw new Error("validation");
       }
+      if (!crDoc && !supplier?.cr_document_path) {
+        setErrors((prev) => ({
+          ...prev,
+          cr_document: "يرجى إرفاق نسخة من السجل التجاري للمنشأة",
+        }));
+        throw new Error("validation");
+      }
       setErrors({});
+
+      let crDocPath: string | null = supplier?.cr_document_path ?? null;
+      if (crDoc) {
+        const safeName = crDoc.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${user!.id}/${Date.now()}-${safeName}`;
+        const { error: uploadErr } = await supabase.storage
+          .from("supplier-documents")
+          .upload(path, crDoc, {
+            contentType: crDoc.type || "application/octet-stream",
+            upsert: false,
+          });
+        if (uploadErr) {
+          toast.error("تعذر رفع ملف السجل التجاري");
+          throw uploadErr;
+        }
+        crDocPath = path;
+      }
+
+      const nextStatus =
+        supplier?.is_approved || supplier?.document_status === "verified"
+          ? "verified"
+          : "pending_verification";
       const { error } = await supabase
         .from("suppliers")
         .upsert(
-          { ...parsed.data, about: parsed.data.about ?? "", user_id: user!.id },
+          {
+            ...parsed.data,
+            about: parsed.data.about ?? "",
+            user_id: user!.id,
+            cr_document_path: crDocPath,
+            document_status: nextStatus,
+          },
           { onConflict: "user_id" }
         );
       if (error) throw error;
@@ -351,18 +398,68 @@ function SupplierForm() {
         actorId: user!.id,
         action: "provider.registered",
         entityType: "supplier",
-        meta: { company_name: parsed.data.company_name },
+        meta: { company_name: parsed.data.company_name, document_status: nextStatus },
       });
     },
     onSuccess: () => {
-      toast.success("تم حفظ ملف مقدم الخدمة / المورد — بانتظار اعتماد الإدارة");
+      const justVerified =
+        supplier?.is_approved || supplier?.document_status === "verified";
+      if (justVerified) {
+        toast.success("تم تحديث بيانات المنشأة المورد بنجاح");
+      } else {
+        toast.success(
+          "تم حفظ ملف المنشأة ورفع السجل التجاري — بانتظار اعتماد الإدارة"
+        );
+      }
+      setAgree(false);
+      setCrDoc(null);
+      if (crFileRef.current) crFileRef.current.value = "";
       queryClient.invalidateQueries({ queryKey: ["supplier", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["supplier-directory"] });
     },
 
     onError: (e: Error) => {
       if (e.message !== "validation") toast.error("تعذر حفظ البيانات، حاول مرة أخرى");
     },
   });
+
+  if (supplier?.is_approved || supplier?.document_status === "verified") {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-7">
+        <h3 className="text-lg font-extrabold">
+          منشأة معتمدة في دليل الموردين — فُرص Open Loop
+        </h3>
+        <p className="mt-2 text-sm font-bold">
+          {supplier.company_name} — {supplier.category}
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          المسؤول: {supplier.contact_name} — {supplier.region}
+        </p>
+        <p className="mt-3 text-xs text-slate-500">
+          يمكنك الآن الدخول إلى لوحة "فرص عرض الأسعار (RFQ)" المتاحة وتقديم
+          عروض فنية ومالية على الفرص المعلنة.
+        </p>
+      </div>
+    );
+  }
+
+  if (supplier && (supplier.document_status === "pending_verification" || supplier.cr_document_path)) {
+    return (
+      <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-7">
+        <h3 className="text-lg font-extrabold text-amber-800 dark:text-amber-300">
+          ملف المنشأة المورد قيد المراجعة والاعتماد
+        </h3>
+        <p className="mt-2 text-sm font-bold">
+          {supplier.company_name} — {supplier.category}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+          تم استلام طلب التسجيل ورفع نسخة السجل التجاري، والآن يتم مراجعة
+          الطلب يدوياً من قبل فريق أوبن لوب خلال 24-48 ساعة عمل. بعد الاعتماد
+          سيتم تفعيل ملفك في دليل الموردين وإعلامك عبر البريد.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form
@@ -384,6 +481,60 @@ function SupplierForm() {
           maxLength={12}
         />
       </FormField>
+      <div className="md:col-span-2">
+        <FormField label="نسخة من السجل التجاري CR" error={errors["cr_document"]}>
+          <div className="rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+            <input
+              ref={crFileRef}
+              type="file"
+              accept={SUPPLIER_DOC_ACCEPT}
+              className="hidden"
+              onChange={(e) => setCrDoc(e.target.files?.[0] ?? null)}
+            />
+            {!crDoc ? (
+              <button
+                type="button"
+                onClick={() => crFileRef.current?.click()}
+                className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-slate-700"
+              >
+                <span className="flex items-center gap-2">
+                  <FileUp className="h-4 w-4 text-indigo-600" />
+                  اضغط لرفع ملف السجل التجاري
+                </span>
+                <span className="text-xs font-bold text-slate-400">
+                  PDF أو صورة، الحد {SUPPLIER_DOC_MAX_MB}MB
+                </span>
+              </button>
+            ) : (
+              <div className="flex w-full items-center justify-between gap-3">
+                <div className="min-w-0 text-sm font-semibold text-slate-700">
+                  <div className="truncate">{crDoc.name}</div>
+                  <div className="text-xs font-bold text-slate-400">
+                    {(crDoc.size / 1024 / 1024).toFixed(2)} ميجابايت
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="إزالة الملف"
+                  onClick={() => {
+                    setCrDoc(null);
+                    if (crFileRef.current) crFileRef.current.value = "";
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          {supplier?.cr_document_path && !crDoc ? (
+            <p className="mt-1.5 text-xs font-bold text-primary dark:text-gold">
+              تم رفع سجل تجاري سابقاً — يمكنك تركه كما هو أو رفع ملف جديد للتحديث.
+            </p>
+          ) : null}
+        </FormField>
+      </div>
       <FormField label="تصنيف التوريد" error={errors["category"]}>
         <select name="category" defaultValue={supplier?.category ?? ""} className={selectClass}>
           <option value="">اختر التصنيف</option>

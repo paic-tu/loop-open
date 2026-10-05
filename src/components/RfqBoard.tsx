@@ -205,6 +205,7 @@ function QuoteDialog({ rfq, onClose }: { rfq: Rfq | null; onClose: () => void })
         .insert({
           rfq_id: rfq!.id,
           supplier_id: user!.id,
+          user_id: user!.id,
           supplier_name: parsed.data.supplier_name,
           amount: parsed.data.amount,
           duration: parsed.data.duration ?? "",
@@ -214,19 +215,23 @@ function QuoteDialog({ rfq, onClose }: { rfq: Rfq | null; onClose: () => void })
         .select("id")
         .maybeSingle();
       if (error) throw error;
-      await logTermsAcceptance({
-        userId: user!.id,
-        acceptanceType: "quote",
-        relatedAction: "quote.submitted",
-        relatedId: data?.id ?? null,
-      });
-      await logAudit({
-        actorId: user!.id,
-        action: "quote.submitted",
-        entityType: "quote",
-        entityId: data?.id ?? null,
-        meta: { rfq_id: rfq!.id },
-      });
+      try {
+        await logTermsAcceptance({
+          userId: user!.id,
+          acceptanceType: "quote",
+          relatedAction: "quote.submitted",
+          relatedId: data?.id ?? null,
+        });
+      } catch (_e) { /* ثانوي — لا يمنع النجاح */ }
+      try {
+        await logAudit({
+          actorId: user!.id,
+          action: "quote.submitted",
+          entityType: "quote",
+          entityId: data?.id ?? null,
+          meta: { rfq_id: rfq!.id },
+        });
+      } catch (_e) { /* ثانوي — لا يمنع النجاح */ }
     },
     onSuccess: () => {
       toast.success("تم إرسال عرض السعر إلى صاحب المشروع");

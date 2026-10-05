@@ -1,6 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, Target, TrendingUp, Megaphone } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Target,
+  TrendingUp,
+  Megaphone,
+  type LucideIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HeroSlider } from "@/components/HeroSlider";
 import { SectionHeading } from "@/components/Sections";
 import { PackagesCarousel } from "@/components/PackagesCarousel";
@@ -8,7 +16,15 @@ import { PartnersMarquee } from "@/components/PartnersMarquee";
 import { CateringSection } from "@/components/CateringSection";
 import { ServicesShowcase } from "@/components/ServicesShowcase";
 import { JoinBanner } from "@/components/Footer";
-import { packages } from "@/data/site";
+import { packages as fallbackPackages, type Pkg, partners as fallbackPartnerNames } from "@/data/site";
+import {
+  getPackages,
+  getImpactStats,
+  getPartners,
+  getServiceCategories,
+  type CmsImpactStat,
+  type CmsPackage,
+} from "@/lib/cms";
 
 export const Route = createFileRoute("/")({
   staticData: { sitemap: true },
@@ -30,26 +46,23 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const impact = [
-  {
-    icon: Target,
-    value: "+250",
-    title: "جمعية ومؤسسة أهلية",
-    text: "تمكين أكثر من 250 جمعية ومؤسسة أهلية من الوصول إلى الاستدامة المالية ورفع مؤشرات الحوكمة الشاملة.",
-  },
-  {
-    icon: TrendingUp,
-    value: "+50 مليون ريال",
-    title: "تنمية واسترداد",
-    text: "تنمية واسترداد أكثر من ٥٠ مليون ريال لصالح القطاع غير الربحي عبر منصات المنح (إحسان، اعتماد) وبرامج الاسترداد الضريبي.",
-  },
-  {
-    icon: Megaphone,
-    value: "+300",
-    title: "حملة تسويقية",
-    text: "إدارة وتنفيذ أكثر من ٣٠٠ حملة تسويقية تستهدف تعميق الأثر المجتمعي ومضاعفة التفاعل الرقمي للكيانات الشريكة.",
-  },
-];
+function toPkg(cp: CmsPackage): Pkg {
+  return {
+    id: cp.slug || cp.id,
+    title: cp.title,
+    subtitle: cp.subtitle ?? "",
+    features: cp.features ?? [],
+    price: cp.price ?? undefined,
+    tiers: cp.tiers ?? [],
+    featured: !!cp.is_featured,
+  };
+}
+
+const iconByName: Record<string, LucideIcon> = {
+  Target,
+  TrendingUp,
+  Megaphone,
+};
 
 const segments = [
   {
@@ -66,7 +79,49 @@ const segments = [
   },
 ];
 
+function ImpactRow({ stat }: { stat: CmsImpactStat }) {
+  const Icon = iconByName[stat.icon_name] ?? Target;
+  return (
+    <div className="surface-ink rounded-[2rem] p-8">
+      <Icon className="h-8 w-8 opacity-90" aria-hidden />
+      <p className="mt-5 text-3xl font-extrabold">{stat.stat_value}</p>
+      <p className="mt-1 text-sm font-bold opacity-90">{stat.title}</p>
+      <p className="mt-4 text-sm leading-relaxed opacity-75">
+        {stat.description}
+      </p>
+    </div>
+  );
+}
+
 function Index() {
+  const packagesQ = useQuery({
+    queryKey: ["cms-packages"],
+    queryFn: () => getPackages(),
+    staleTime: 60_000,
+  });
+  const impactQ = useQuery({
+    queryKey: ["cms-impact"],
+    queryFn: () => getImpactStats(),
+    staleTime: 60_000,
+  });
+  const partnersQ = useQuery({
+    queryKey: ["cms-partners"],
+    queryFn: () => getPartners(),
+    staleTime: 60_000,
+  });
+  const servicesQ = useQuery({
+    queryKey: ["cms-services"],
+    queryFn: () => getServiceCategories(),
+    staleTime: 60_000,
+  });
+
+  const pkgs: Pkg[] = (packagesQ.data ?? []).map(toPkg);
+  const useFallbackPkgs = pkgs.length === 0 && !packagesQ.isLoading;
+
+  const impactRows = impactQ.data ?? [];
+  const partnersRows = partnersQ.data ?? [];
+  const servicesRows = servicesQ.data ?? [];
+
   return (
     <>
       <HeroSlider />
@@ -93,7 +148,7 @@ function Index() {
       </section>
 
       {/* SERVICES SHOWCASE */}
-      <ServicesShowcase />
+      <ServicesShowcase categories={servicesRows.length ? servicesRows : undefined} />
 
       {/* PACKAGES */}
       <section id="packages" className="section-pad bg-surface">
@@ -103,7 +158,15 @@ function Index() {
             title="باقات مصممة لاحتياجات الكيانات غير الربحية"
             description="قارن بين الباقات واختر ما يناسب مرحلة نمو جمعيتك."
           />
-          <PackagesCarousel items={packages} />
+          {packagesQ.isLoading ? (
+            <div className="mt-12 grid gap-6 md:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-[380px] w-full rounded-3xl" />
+              ))}
+            </div>
+          ) : (
+            <PackagesCarousel items={useFallbackPkgs ? fallbackPackages : pkgs} />
+          )}
         </div>
       </section>
 
@@ -118,16 +181,19 @@ function Index() {
             title="أثرنا المستهدف حتى 2030"
             description="أرقام نعمل عليها مع شركائنا في القطاع الثالث لتحويل الفرص إلى استدامة حقيقية."
           />
-          <div className="mt-12 grid gap-6 lg:grid-cols-3">
-            {impact.map((i) => (
-              <div key={i.title} className="surface-ink rounded-[2rem] p-8">
-                <i.icon className="h-8 w-8 opacity-90" aria-hidden />
-                <p className="mt-5 text-3xl font-extrabold">{i.value}</p>
-                <p className="mt-1 text-sm font-bold opacity-90">{i.title}</p>
-                <p className="mt-4 text-sm leading-relaxed opacity-75">{i.text}</p>
-              </div>
-            ))}
-          </div>
+          {impactQ.isLoading ? (
+            <div className="mt-12 grid gap-6 lg:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-[260px] w-full rounded-[2rem]" />
+              ))}
+            </div>
+          ) : (
+            <div className="mt-12 grid gap-6 lg:grid-cols-3">
+              {impactRows.map((i) => (
+                <ImpactRow key={i.id} stat={i} />
+              ))}
+            </div>
+          )}
 
           <div className="mt-16">
             <SectionHeading title="حلولنا موجهة إلى الكيانات غير الربحية" />
@@ -152,7 +218,10 @@ function Index() {
           <SectionHeading eyebrow="ثقة متبادلة" title="شركاء النجاح" />
         </div>
         <div className="mt-10">
-          <PartnersMarquee />
+          <PartnersMarquee
+            partners={partnersRows.length ? partnersRows : undefined}
+            namesOnlyFallback={!partnersRows.length ? fallbackPartnerNames : undefined}
+          />
         </div>
       </section>
 

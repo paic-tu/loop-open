@@ -1,15 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { BarChart3, Palette, PenTool, Megaphone, Calculator, ArrowLeft, ChevronRight, ChevronLeft } from "lucide-react";
-import { serviceCategories } from "@/data/site";
+import {
+  BarChart3,
+  Palette,
+  PenTool,
+  Megaphone,
+  Calculator,
+  ArrowLeft,
+  ChevronRight,
+  ChevronLeft,
+  type LucideIcon,
+} from "lucide-react";
+import { serviceCategories as fallbackServices } from "@/data/site";
 import { SectionHeading } from "@/components/Sections";
+import type { CmsServiceCat } from "@/lib/cms";
 
-const iconMap = {
+type LocalCat = {
+  slug: string;
+  order: string;
+  title: string;
+  description: string;
+  iconName?: string;
+  items: string[];
+  details?: { title: string; description: string }[];
+};
+
+const iconMap: Record<string, LucideIcon> = {
   resources: BarChart3,
   design: Palette,
   content: PenTool,
   marketing: Megaphone,
   tax: Calculator,
+  BarChart3,
+  Palette,
+  PenTool,
+  Megaphone,
+  Calculator,
 };
 
 function usePerPage() {
@@ -24,17 +50,34 @@ function usePerPage() {
   return perPage;
 }
 
-export function ServicesShowcase() {
+type Props = {
+  categories?: CmsServiceCat[];
+};
+
+export function ServicesShowcase({ categories }: Props) {
   const perPage = usePerPage();
   const [page, setPage] = useState(0);
 
-  const pages = useMemo(() => {
-    const out: typeof serviceCategories[] = [];
-    for (let i = 0; i < serviceCategories.length; i += perPage) {
-      out.push(serviceCategories.slice(i, i + perPage));
+  const items: LocalCat[] = useMemo(() => {
+    if (categories && categories.length > 0) {
+      return categories.map((c) => ({
+        slug: c.slug,
+        order: String(c.display_order || c.sort_order + 1 || "1"),
+        title: c.title,
+        description: c.description ?? "",
+        iconName: c.icon_name ?? undefined,
+        items: c.items ?? [],
+        details: c.details ?? [],
+      }));
     }
+    return fallbackServices;
+  }, [categories]);
+
+  const pages = useMemo(() => {
+    const out: LocalCat[][] = [];
+    for (let i = 0; i < items.length; i += perPage) out.push(items.slice(i, i + perPage));
     return out;
-  }, [perPage]);
+  }, [items, perPage]);
 
   const total = pages.length;
   useEffect(() => {
@@ -65,10 +108,15 @@ export function ServicesShowcase() {
                 <div
                   key={gi}
                   className="w-full shrink-0 grid gap-6 md:grid-cols-3"
-                  style={{ opacity: gi === page ? 1 : 0.4, transition: "opacity 0.4s ease-in-out" }}
+                  style={{
+                    opacity: gi === page ? 1 : 0.4,
+                    transition: "opacity 0.4s ease-in-out",
+                  }}
                 >
                   {group.map((c) => {
-                    const Icon = iconMap[c.iconName ?? "resources"];
+                    const Icon =
+                      (c.iconName ? iconMap[c.iconName] : undefined) ??
+                      BarChart3;
                     return (
                       <Link
                         key={c.slug}
@@ -87,12 +135,17 @@ export function ServicesShowcase() {
 
                         <div className="flex-1 py-4">
                           <h3 className="text-lg font-extrabold leading-snug">{c.title}</h3>
-                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">{c.description}</p>
+                          <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                            {c.description}
+                          </p>
                         </div>
 
                         <div className="inline-flex items-center gap-2 text-sm font-extrabold text-primary dark:text-gold">
                           عرض الخدمات
-                          <ArrowLeft className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1" aria-hidden />
+                          <ArrowLeft
+                            className="h-4 w-4 transition-transform duration-300 group-hover:-translate-x-1"
+                            aria-hidden
+                          />
                         </div>
                       </Link>
                     );
@@ -121,7 +174,9 @@ export function ServicesShowcase() {
                     aria-label={`الصفحة ${i + 1}`}
                     onClick={() => setPage(i)}
                     className={`h-2.5 rounded-full transition-all ${
-                      i === page ? "w-7 bg-primary dark:bg-gold" : "w-2.5 bg-muted-foreground/40"
+                      i === page
+                        ? "w-7 bg-primary dark:bg-gold"
+                        : "w-2.5 bg-muted-foreground/40"
                     }`}
                   />
                 ))}

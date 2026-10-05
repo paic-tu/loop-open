@@ -21,14 +21,14 @@ import {
 } from "@/lib/marketplace";
 
 /** Admin control centre for the marketplace: approvals, commissions, settings and reports. */
-export function AdminMarketplace() {
+export function AdminMarketplace({ defaultTab = "approvals" }: { defaultTab?: string }) {
   return (
-    <div className="card-elevated p-6">
-      <h2 className="flex items-center gap-2 text-lg font-extrabold">
+    <div className="space-y-6">
+      <h2 className="flex items-center gap-2 text-xl font-extrabold">
         <ShieldCheck className="h-5 w-5 text-primary dark:text-gold" aria-hidden />
         إدارة سوق فُرص Open Loop
       </h2>
-      <Tabs defaultValue="approvals" className="mt-6">
+      <Tabs defaultValue={defaultTab} className="mt-2">
         <TabsList className="flex flex-wrap">
           <TabsTrigger value="approvals">الاعتمادات</TabsTrigger>
           <TabsTrigger value="commissions">العمولات</TabsTrigger>
@@ -69,21 +69,47 @@ function useApprovalAction() {
     }) => {
       const patch: Record<string, unknown> = { status, ...extra };
       if (table === "community_entities") patch["is_verified"] = status === "approved";
-      const { error } = await supabase.from(table).update(patch as never).eq("id", id);
+      // 1) التحديث الرئيسي للحالة — الإجراء الأساسي الذي يجب أن ينجح دائماً
+      const { error } = await supabase
+        .from(table)
+        .update(patch as never)
+        .eq("id", id);
       if (error) throw error;
-      await supabase.from("approvals").insert({
-        entity_type: table,
-        entity_id: id,
-        status,
-        reviewer_id: user!.id,
-      });
-      await logAudit({ actorId: user!.id, action: `${table}.${status}`, entityType: table, entityId: id });
+
+      // 2) إدراج سجل الاعتماد (عملية ثانوية مهمة لكن لا يجب أن تمنع النجاح لو فشلت)
+      try {
+        await supabase.from("approvals").insert({
+          entity_type: table,
+          entity_id: id,
+          status,
+          reviewer_id: user!.id,
+          reviewed_at: new Date().toISOString(),
+        });
+      } catch (e) {
+        console.warn("approvals insert skipped:", e instanceof Error ? e.message : e);
+      }
+
+      // 3) سجل التدقيق (ثانوي أيضاً)
+      try {
+        await logAudit({
+          actorId: user!.id,
+          action: `${table}.${status}`,
+          entityType: table,
+          entityId: id,
+          meta: extra ?? {},
+        });
+      } catch (e) {
+        console.warn("audit insert skipped:", e instanceof Error ? e.message : e);
+      }
     },
     onSuccess: () => {
       toast.success("تم تحديث الحالة");
       queryClient.invalidateQueries();
     },
-    onError: () => toast.error("تعذر تحديث الحالة"),
+    onError: (e) => {
+      console.error("Approval update failed:", e instanceof Error ? e.message : e);
+      toast.error("تعذر تحديث الحالة");
+    },
   });
 }
 
@@ -136,8 +162,32 @@ function ApprovalsPanel() {
             subtitle={`${o.entity_type} — ترخيص ${o.license_number} — ${o.region}`}
             status={o.status}
             map={ACCOUNT_STATUS}
-            onApprove={() => action.mutate({ table: "community_entities", id: o.id, status: "approved" })}
-            onReject={() => action.mutate({ table: "community_entities", id: o.id, status: "rejected" })}
+            onApprove={() =>
+              action.mutate({
+                table: "community_entities",
+                id: o.id,
+                status: "approved",
+                extra: {
+                  verified_at: new Date().toISOString(),
+                  document_status: "verified",
+                  document_status_updated_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              })
+            }
+            onReject={() =>
+              action.mutate({
+                table: "community_entities",
+                id: o.id,
+                status: "rejected",
+                extra: {
+                  is_verified: false,
+                  document_status: "rejected",
+                  document_status_updated_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              })
+            }
             pending={action.isPending}
           />
         ))}
@@ -151,8 +201,33 @@ function ApprovalsPanel() {
             subtitle={`${p.category} — سجل ${p.cr_number} — ${p.region}`}
             status={p.status}
             map={ACCOUNT_STATUS}
-            onApprove={() => action.mutate({ table: "suppliers", id: p.id, status: "approved" })}
-            onReject={() => action.mutate({ table: "suppliers", id: p.id, status: "rejected" })}
+            onApprove={() =>
+              action.mutate({
+                table: "suppliers",
+                id: p.id,
+                status: "approved",
+                extra: {
+                  verified_at: new Date().toISOString(),
+                  document_status: "verified",
+                  document_status_updated_at: new Date().toISOString(),
+                  is_verified: true,
+                  updated_at: new Date().toISOString(),
+                },
+              })
+            }
+            onReject={() =>
+              action.mutate({
+                table: "suppliers",
+                id: p.id,
+                status: "rejected",
+                extra: {
+                  is_verified: false,
+                  document_status: "rejected",
+                  document_status_updated_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                },
+              })
+            }
             pending={action.isPending}
           />
         ))}
@@ -172,7 +247,12 @@ function ApprovalsPanel() {
                 table: "rfqs",
                 id: r.id,
                 status: "published",
-                extra: { approved_at: new Date().toISOString(), is_open: true },
+                extra: {
+                  approved_at: new Date().toISOString(),
+                  published_at: new Date().toISOString(),
+                  is_open: true,
+                  updated_at: new Date().toISOString(),
+                },
               })
             }
             onReject={() =>
@@ -180,7 +260,12 @@ function ApprovalsPanel() {
                 table: "rfqs",
                 id: r.id,
                 status: "rejected",
-                extra: { is_open: false, rejection_reason: "لم تستوفِ الفرصة شروط النشر" },
+                extra: {
+                  rejected_at: new Date().toISOString(),
+                  is_open: false,
+                  rejection_reason: "لم تستوفِ الفرصة شروط النشر",
+                  updated_at: new Date().toISOString(),
+                },
               })
             }
             pending={action.isPending}
