@@ -3,6 +3,82 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
 
+export type SupabaseEnvStatus = "ok" | "missing-url" | "missing-key" | "missing-both";
+
+export function getSupabaseEnvStatus(): {
+  status: SupabaseEnvStatus;
+  missing: string[];
+  url?: string;
+  key?: string;
+} {
+  const SUPABASE_URL =
+    (typeof import.meta !== "undefined" && (import.meta.env as Record<string, unknown> | undefined)?.["VITE_SUPABASE_URL"] as string | undefined) ||
+    (typeof process !== "undefined" && (process.env as Record<string, unknown> | undefined)?.["SUPABASE_URL"] as string | undefined);
+  const SUPABASE_PUBLISHABLE_KEY =
+    (typeof import.meta !== "undefined" && (import.meta.env as Record<string, unknown> | undefined)?.["VITE_SUPABASE_PUBLISHABLE_KEY"] as string | undefined) ||
+    (typeof process !== "undefined" && (process.env as Record<string, unknown> | undefined)?.["SUPABASE_PUBLISHABLE_KEY"] as string | undefined);
+
+  const missing = [
+    ...(!SUPABASE_URL ? ["SUPABASE_URL", "VITE_SUPABASE_URL"] : []),
+    ...(!SUPABASE_PUBLISHABLE_KEY ? ["SUPABASE_PUBLISHABLE_KEY", "VITE_SUPABASE_PUBLISHABLE_KEY"] : []),
+  ];
+  let status: SupabaseEnvStatus = "ok";
+  if (!SUPABASE_URL && !SUPABASE_PUBLISHABLE_KEY) status = "missing-both";
+  else if (!SUPABASE_URL) status = "missing-url";
+  else if (!SUPABASE_PUBLISHABLE_KEY) status = "missing-key";
+  return { status, missing, url: SUPABASE_URL, key: SUPABASE_PUBLISHABLE_KEY };
+}
+
+export function renderSupabaseSetupError(missing: string[]): string {
+  const bullets = missing
+    .map((k) => `  • ${k}`)
+    .join("<br>");
+  return `<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>إعدادات Supabase مطلوبة | أوبن لوب</title>
+<style>
+  *{box-sizing:border-box} html,body{margin:0;padding:0;font-family:Tajawal,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0d1921;color:#e6edf3}
+  .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
+  .card{width:100%;max-width:640px;background:#13232e;border:1px solid #2F525788;border-radius:22px;padding:32px 28px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
+  .tag{display:inline-block;background:#E09F4822;color:#E09F48;border:1px solid #E09F4855;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:800;letter-spacing:.3px}
+  h1{margin:14px 0 6px;font-size:26px;line-height:1.3;color:#fff}
+  p{margin:6px 0 18px;line-height:1.85;color:#b7c4cd}
+  code{background:#0b151c;border:1px solid #2F525766;color:#E09F48;padding:3px 8px;border-radius:8px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+  .missing{background:#C34A361A;border:1px dashed #C34A3666;border-radius:16px;padding:14px 18px;margin:10px 0 20px;color:#ffb8ad;font-weight:600;line-height:1.8}
+  .steps{list-style:none;padding:0;margin:10px 0 0;counter-reset:s}
+  .steps li{counter-increment:s;display:grid;grid-template-columns:40px 1fr;gap:12px;padding:12px 0;border-bottom:1px dashed #2F525744;align-items:start}
+  .steps li:last-child{border-bottom:0}
+  .steps li::before{content:counter(s);width:40px;height:40px;border-radius:50%;background:#2F525755;border:1px solid #2F525777;color:#9CD3D8;display:grid;place-items:center;font-weight:900;font-size:15px;flex:none}
+  .steps b{color:#fff}
+  .foot{margin-top:22px;padding-top:18px;border-top:1px solid #2F525744;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+  .hint{font-size:12px;color:#8fa2ab}
+  .btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;background:#17374A;color:#fff;border:1px solid #2F525777;padding:10px 18px;font-weight:800;text-decoration:none}
+  .btn.primary{background:#E09F48;color:#17374A;border-color:#E09F48}
+  @media (max-width:520px){.card{padding:24px 20px} h1{font-size:22px}}
+</style>
+</head>
+<body><div class="wrap"><div class="card">
+  <span class="tag">⚠️ إعداد مطلوب قبل المتابعة</span>
+  <h1>متغيرات Supabase مفقودة في بيئة النشر (Vercel)</h1>
+  <p>رسالة <code>This page didn't load</code> التي تظهر لك سببها مباشر أن مفاتيح Supabase <b>لم تُضف بعد</b> إلى إعدادات Environment Variables في مشروع Vercel. الكود صحيح 100%، فقط يحتاج هذه البيانات.</p>
+  <div class="missing">المتغيرات المفقودة حالياً:<br>${bullets}</div>
+  <ol class="steps">
+    <li><div><b>افتح إعدادات مشروعك في Vercel</b><br>المسار: Project → <code>Settings</code> → <code>Environment Variables</code></div></li>
+    <li><div><b>انسخ القيم من ملف</b> <code>.env</code> الموجود على جهازك (أو من ملف <code>.env.example</code> في الريبو).<br>المطلوب إضافة <b>6 متغيرات</b> على الأقل: <code>SUPABASE_PROJECT_ID</code>، <code>SUPABASE_URL</code>، <code>SUPABASE_PUBLISHABLE_KEY</code>، <code>VITE_SUPABASE_PROJECT_ID</code>، <code>VITE_SUPABASE_URL</code>، <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>. وأفضل تضيف أيضاً <code>SUPABASE_SERVICE_ROLE_KEY</code> لميزات الإدارة.</div></li>
+    <li><div><b>حدّد البيئات الثلاثة لكل متغير</b>: <code>Production</code> + <code>Preview</code> + <code>Development</code> ثم اضغط <code>Save</code>.</div></li>
+    <li><div><b>أعد نشر المشروع</b>: من تبويب <code>Deployments</code> → اضغط على النشر الأخير → <code>Redeploy</code> (مهم: مع تفعيل <code>Use existing Build Cache</code> خارق حتى تأخذ المتغيرات).</div></li>
+  </ol>
+  <div class="foot">
+    <span class="hint">بمجرد إضافة المتغيرات وإعادة النشر، سيختفي هذا القسم وتحمل المنصة بشكل طبيعي.</span>
+    <a class="btn primary" target="_blank" rel="noreferrer" href="https://vercel.com/docs/projects/environment-variables">دليل Vercel ↗</a>
+  </div>
+</div></div></body>
+</html>`;
+}
+
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
 }
@@ -17,7 +93,6 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
       new Headers(init.headers).forEach((value, key) => headers.set(key, value));
     }
 
-    // New Supabase API keys are opaque strings, not bearer JWTs.
     if (isNewSupabaseApiKey(supabaseKey) && headers.get('Authorization') === `Bearer ${supabaseKey}`) {
       headers.delete('Authorization');
     }
@@ -27,26 +102,28 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
   };
 }
 
-
-function createSupabaseClient() {
-  // Use import.meta.env for client-side (Vite build-time replacement)
-  // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
-
-  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-    const missing = [
-      ...(!SUPABASE_URL ? ['SUPABASE_URL'] : []),
-      ...(!SUPABASE_PUBLISHABLE_KEY ? ['SUPABASE_PUBLISHABLE_KEY'] : []),
-    ];
-    const message = `Missing Supabase environment variable(s): ${missing.join(', ')}. Connect Supabase in Lovable Cloud.`;
-    console.error(`[Supabase] ${message}`);
-    throw new Error(message);
+function createSupabaseClient(): ReturnType<typeof createClient<Database>> | null {
+  const { status, missing, url, key } = getSupabaseEnvStatus();
+  if (status !== "ok") {
+    const skipSetup =
+      (typeof import.meta !== "undefined" &&
+        ((import.meta.env as Record<string, unknown> | undefined)?.["VERCEL_SKIP_SSR_AUTH_BOOTSTRAP"] as string | undefined) === "1") ||
+      (typeof process !== "undefined" &&
+        ((process.env as Record<string, unknown> | undefined)?.["VERCEL_SKIP_SSR_AUTH_BOOTSTRAP"] as string | undefined) === "1");
+    if (skipSetup) {
+      console.warn("[Supabase] Environment variables missing but VERCEL_SKIP_SSR_AUTH_BOOTSTRAP=1 → returning null client (SSR-only graceful fallthrough).");
+      return null;
+    }
+    // In SSR context, throw a dedicated marker so the server entry can render a friendly setup page
+    // instead of the generic "This page didn't load" TanStack error boundary.
+    const err = new Error(`Missing Supabase env vars: ${missing.join(", ")}`);
+    (err as Error & { code?: string; missing?: string[] }).code = "SUPABASE_ENV_MISSING";
+    (err as Error & { missing?: string[] }).missing = missing;
+    throw err;
   }
-
-  return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient<Database>(url as string, key as string, {
     global: {
-      fetch: createSupabaseFetch(SUPABASE_PUBLISHABLE_KEY),
+      fetch: createSupabaseFetch(key as string),
     },
     auth: {
       storage: brokeredPreviewStorage(),
@@ -56,14 +133,33 @@ function createSupabaseClient() {
   });
 }
 
-let _supabase: ReturnType<typeof createSupabaseClient> | undefined;
+let _supabase: ReturnType<typeof createClient<Database>> | null | undefined;
+let _setupError: (Error & { code?: string; missing?: string[] }) | undefined;
+
+export function getSupabaseSetupError(): (Error & { code?: string; missing?: string[] }) | undefined {
+  return _setupError;
+}
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
-export const supabase = new Proxy({} as ReturnType<typeof createSupabaseClient>, {
+export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
   get(_, prop, receiver) {
-    if (!_supabase) _supabase = createSupabaseClient();
+    if (_setupError) throw _setupError;
+    if (!_supabase) {
+      try {
+        _supabase = createSupabaseClient();
+      } catch (err) {
+        _setupError = err as Error & { code?: string; missing?: string[] };
+        throw _setupError;
+      }
+    }
+    if (!_supabase) {
+      // Graceful placeholder when skip-setup is enabled. Methods called will still throw
+      // but we let TanStack defer errors to the specific caller (avoid blank error on page paint).
+      return undefined;
+    }
     return Reflect.get(_supabase, prop, receiver);
   },
 });
+
 
