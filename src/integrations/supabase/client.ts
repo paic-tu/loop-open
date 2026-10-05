@@ -140,26 +140,93 @@ export function getSupabaseSetupError(): (Error & { code?: string; missing?: str
   return _setupError;
 }
 
+type PlaceholderChain = {
+  (): PlaceholderChain;
+  then: <T>(onfulfilled?: (value: unknown) => T | Promise<T>) => Promise<T | undefined>;
+  select: PlaceholderChain;
+  from: PlaceholderChain;
+  auth: PlaceholderChain;
+  rpc: PlaceholderChain;
+  storage: PlaceholderChain;
+  realtime: PlaceholderChain;
+  channel: PlaceholderChain;
+} & Record<string, PlaceholderChain>;
+
+function buildNoopChain(message?: string): PlaceholderChain {
+  // Deep no-op placeholder that returns itself for any property access / call.
+  // Acts as a thenable so `await supabase.from(..).select(..)` always resolves.
+  const chainInner = function () {
+    return chain;
+  } as unknown as PlaceholderChain;
+
+  const chain = new Proxy(chainInner, {
+    get(_t, p) {
+      if (p === "then") {
+        return (
+          (onfulfilled?: ((value: unknown) => unknown) | null | undefined) => {
+            try {
+              const resolved = onfulfilled?.({
+                data: null,
+                error: new Error(message ?? "Supabase غير متاح حالياً"),
+              });
+              return Promise.resolve(resolved);
+            } catch (e) {
+              return Promise.reject(e);
+            }
+          }
+        ) as unknown as PlaceholderChain["then"];
+      }
+      if (p === "catch") {
+        return ((fn?: (reason: unknown) => unknown) => {
+          return Promise.resolve(fn?.(new Error(message ?? "Supabase غير متاح حالياً")));
+        }) as unknown as PlaceholderChain["catch"];
+      }
+      if (p === "finally") {
+        return ((fn?: () => unknown) => {
+          return Promise.resolve(fn?.());
+        }) as unknown as PlaceholderChain["finally"];
+      }
+      return buildNoopChain(message);
+    },
+    apply(_t, _this, _args) {
+      return chain;
+    },
+  }) as unknown as PlaceholderChain;
+  return chain;
+}
+
+const NOOP_CLIENT_PLACEHOLDER = new Proxy({} as unknown as ReturnType<typeof createClient<Database>>, {
+  get(_, prop) {
+    return buildNoopChain("Supabase غير متاح حالياً (متغيرات البيئة مفقودة في Vercel).");
+  },
+});
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 export const supabase = new Proxy({} as ReturnType<typeof createClient<Database>>, {
   get(_, prop, receiver) {
-    if (_setupError) throw _setupError;
+    // NEVER throw on first access — never crash SSR page on Vercel.
     if (!_supabase) {
       try {
         _supabase = createSupabaseClient();
       } catch (err) {
         _setupError = err as Error & { code?: string; missing?: string[] };
-        throw _setupError;
+        // Swallow bootstrap errors — return the no-op client so the page renders.
+        // Pages will show appropriate user-friendly setup banners via useAuth().supabaseAvailable=false.
+        console.warn(
+          `[Supabase] Bootstrap failed — falling back to no-op placeholder. Missing vars: ${
+            _setupError.missing?.join(", ") ?? _setupError.message ?? "unknown"
+          }`,
+        );
+        _supabase = NOOP_CLIENT_PLACEHOLDER;
       }
     }
     if (!_supabase) {
-      // Graceful placeholder when skip-setup is enabled. Methods called will still throw
-      // but we let TanStack defer errors to the specific caller (avoid blank error on page paint).
-      return undefined;
+      return Reflect.get(NOOP_CLIENT_PLACEHOLDER, prop, receiver);
     }
     return Reflect.get(_supabase, prop, receiver);
   },
 });
+
 
 

@@ -7,7 +7,7 @@ import {
   useCallback,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, getSupabaseEnvStatus } from "@/integrations/supabase/client";
 import type { AppRole } from "./permissions";
 
 type ProfileData = {
@@ -30,7 +30,27 @@ type AuthValue = {
   changePassword: (newPassword: string) => Promise<void>;
   resetPasswordEmail: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Non-null only when Supabase environment variables are fully configured. */
+  supabaseAvailable: boolean;
+  /** Missing env var names, useful to render setup banners client-side. */
+  missingEnvVars: string[];
 };
+
+const ENV_STATUS =
+  typeof window === "undefined"
+    ? { status: "missing-both" as const, missing: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"] as string[] }
+    : (() => {
+        try {
+          const s = getSupabaseEnvStatus();
+          return { status: s.status, missing: s.missing };
+        } catch {
+          return { status: "missing-both" as const, missing: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"] as string[] };
+        }
+      })();
+
+function hasSupabase(): boolean {
+  return ENV_STATUS.status === "ok" && typeof (supabase as unknown as { auth?: unknown })?.auth !== "undefined";
+}
 
 const AuthContext = createContext<AuthValue>({
   user: null,
@@ -45,28 +65,61 @@ const AuthContext = createContext<AuthValue>({
   changePassword: async () => {},
   resetPasswordEmail: async () => {},
   signOut: async () => {},
+  supabaseAvailable: false,
+  missingEnvVars: ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY"],
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(!hasSupabase() ? false : true);
   const [roles, setRoles] = useState<AppRole[]>(["user"]);
-  const [rolesLoading, setRolesLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState<boolean>(!hasSupabase() ? false : true);
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
+    if (!hasSupabase()) return;
+    let mounted = true;
+    const sb = supabase as NonNullable<typeof supabase>;
+    try {
+      const { data: sub } = sb.auth.onAuthStateChange((_event, next) => {
+        if (!mounted) return;
+        setSession(next);
+        setLoading(false);
+      });
+      sb.auth
+        .getSession()
+        .then(({ data }) => {
+          if (!mounted) return;
+          setSession(data.session);
+          setLoading(false);
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setLoading(false);
+        });
+      return () => {
+        mounted = false;
+        try {
+          sub.subscription.unsubscribe();
+        } catch {
+          /* ignore */
+        }
+      };
+    } catch {
       setLoading(false);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setLoading(false);
-    });
-    return () => sub.subscription.unsubscribe();
+      return () => {
+        mounted = false;
+      };
+    }
   }, []);
 
   useEffect(() => {
+    if (!hasSupabase()) {
+      setRolesLoading(false);
+      setRoles(["user"]);
+      setProfile(null);
+      return;
+    }
     const uid = session?.user?.id;
     if (!uid) {
       setRoles(["user"]);
@@ -76,8 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     let cancelled = false;
     setRolesLoading(true);
-    supabase
-      .from("user_roles")
+    const sb = supabase as NonNullable<typeof supabase>;
+    sb.from("user_roles")
       .select("role")
       .eq("user_id", uid)
       .then(({ data }) => {
@@ -93,8 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setRolesLoading(false);
       });
-    supabase
-      .from("profiles")
+    sb.from("profiles")
       .select("full_name, phone, organization")
       .eq("id", uid)
       .maybeSingle()
@@ -115,6 +167,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             email: session?.user?.email ?? null,
           });
         }
+      })
+      .catch(() => {
+        if (cancelled) return;
       });
     return () => {
       cancelled = true;
@@ -122,29 +177,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id, session?.user?.email]);
 
   const refreshProfile = useCallback(async () => {
+    if (!hasSupabase()) return;
     const uid = session?.user?.id;
     if (!uid) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("full_name, phone, organization")
-      .eq("id", uid)
-      .maybeSingle();
-    if (data) {
-      setProfile({
-        full_name: String(data.full_name ?? ""),
-        phone: String(data.phone ?? ""),
-        organization: data.organization ? String(data.organization) : null,
-        email: session?.user?.email ?? null,
-      });
+    const sb = supabase as NonNullable<typeof supabase>;
+    try {
+      const { data } = await sb
+        .from("profiles")
+        .select("full_name, phone, organization")
+        .eq("id", uid)
+        .maybeSingle();
+      if (data) {
+        setProfile({
+          full_name: String(data.full_name ?? ""),
+          phone: String(data.phone ?? ""),
+          organization: data.organization ? String(data.organization) : null,
+          email: session?.user?.email ?? null,
+        });
+      }
+    } catch {
+      /* ignore */
     }
   }, [session?.user?.id, session?.user?.email]);
 
   const updateProfile: AuthValue["updateProfile"] = async (patch) => {
+    if (!hasSupabase()) throw new Error("Supabase غير متاح حالياً — أعد محاولة الإعداد");
     const uid = session?.user?.id;
     if (!uid) throw new Error("يجب تسجيل الدخول");
     const current = profile ?? { full_name: "", phone: "", organization: null };
     const next: ProfileData = { ...current, ...patch };
-    await supabase
+    const sb = supabase as NonNullable<typeof supabase>;
+    await sb
       .from("profiles")
       .upsert(
         {
@@ -159,15 +222,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const changePassword: AuthValue["changePassword"] = async (newPassword) => {
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (!hasSupabase()) throw new Error("Supabase غير متاح حالياً");
+    const sb = supabase as NonNullable<typeof supabase>;
+    const { error } = await sb.auth.updateUser({ password: newPassword });
     if (error) throw error;
   };
 
   const resetPasswordEmail: AuthValue["resetPasswordEmail"] = async (email) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset`,
+    if (!hasSupabase()) throw new Error("Supabase غير متاح حالياً");
+    const sb = supabase as NonNullable<typeof supabase>;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const { error } = await sb.auth.resetPasswordForEmail(email, {
+      redirectTo: origin ? `${origin}/auth/reset` : "/auth/reset",
     });
     if (error) throw error;
+  };
+
+  const signOut: AuthValue["signOut"] = async () => {
+    if (!hasSupabase()) return;
+    const sb = supabase as NonNullable<typeof supabase>;
+    try {
+      await sb.auth.signOut();
+    } catch {
+      /* ignore */
+    }
   };
 
   const value: AuthValue = {
@@ -182,9 +260,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateProfile,
     changePassword,
     resetPasswordEmail,
-    signOut: async () => {
-      await supabase.auth.signOut();
-    },
+    signOut,
+    supabaseAvailable: hasSupabase(),
+    missingEnvVars: ENV_STATUS.missing,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -193,3 +271,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   return useContext(AuthContext);
 }
+
