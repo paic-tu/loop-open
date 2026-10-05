@@ -5,12 +5,8 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install --include=optional",
   "outputDirectory": ".output/public",
-  "functions": {
-    ".output/server/index.mjs": {
-      "runtime": "nodejs22.x",
-      "maxDuration": 30
-    }
-  },
+  "cleanUrls": true,
+  "trailingSlash": false,
   "headers": [
     {
       "source": "/(.*)",
