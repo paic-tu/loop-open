@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": "npm run build",
+  "buildCommand": "cross-env NITRO_PRESET=vercel npm run build",
   "devCommand": "npm run dev",
   "installCommand": "npm install --include=optional",
-  "outputDirectory": ".output/public",
   "cleanUrls": true,
   "trailingSlash": false,
+  "regions": ["iad1"],
   "headers": [
     {
       "source": "/(.*)",

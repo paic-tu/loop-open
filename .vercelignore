@@ -1,0 +1,22 @@
+# Local editor / tooling
+.idea/
+.vscode/
+.trae/
+
+# Build artifacts generated locally when testing with NITRO_PRESET=vercel
+.vercel/output/
+
+# Standard Node / Nitro output
+.node_modules/
+.output/
+.nitro/
+.wrangler/
+
+# Secrets & environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+Thumbs.db
