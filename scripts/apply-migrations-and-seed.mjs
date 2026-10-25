@@ -7,14 +7,14 @@
 // ✅ طريقة التشغيل:
 //    node scripts/apply-migrations-and-seed.mjs
 //
-// ✅ المتطلبات في ملف .env:
-//    SUPABASE_PROJECT_ID    (موجود الآن: berprxhuguniggtnerfq)
+// ✅ المتطلبات في ملف .env (لا تُكتب أي أسرار داخل الكود):
+//    SUPABASE_PROJECT_ID
 //    SUPABASE_URL           (سيتم بناؤه تلقائياً إن لم يكن)
-//    SUPABASE_SERVICE_ROLE_KEY (موجود الآن في .env)
-//    SUPABASE_DB_PASSWORD   (اختياري — لو كان موجوداً نستخدمه مباشرة)
+//    SUPABASE_SERVICE_ROLE_KEY
+//    SUPABASE_DB_PASSWORD   (أو يُمرَّر كـ CLI argument)
 //
 //    و كلمة مرور قاعدة البيانات كـ CLI argument (لو لم تكن في .env):
-//    node scripts/apply-migrations-and-seed.mjs 9A182SlQ0Zfo1yRX
+//    node scripts/apply-migrations-and-seed.mjs "كلمة_مرور_قاعدة_البيانات"
 // ============================================================
 
 import { readFileSync, existsSync } from "node:fs";

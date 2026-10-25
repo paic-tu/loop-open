@@ -2,12 +2,42 @@
 // إنشاء جدول request_notes للملاحظات الداخلية المتراكمة + RLS + Migrate الملاحظات القديمة
 // ============================================================
 import pg from "pg";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 const { Pool } = pg;
 
-const DB_PASSWORD = process.argv[2] || "9A182SlQ0Zfo1yRX";
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const envPath = join(__dirname, "..", ".env");
+
+// تحميل ملف .env (بدون كتابة أي أسرار داخل الكود)
+if (existsSync(envPath)) {
+  const envText = readFileSync(envPath, "utf8");
+  for (const line of envText.split(/\r?\n/)) {
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 0) continue;
+    const key = line.slice(0, eq).trim();
+    let val = line.slice(eq + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) val = val.slice(1, -1);
+    if (!process.env[key]) process.env[key] = val;
+  }
+}
+
+const PROJECT_ID = process.env.SUPABASE_PROJECT_ID || process.env.VITE_SUPABASE_PROJECT_ID;
+const DB_PASSWORD = process.argv[2] || process.env.SUPABASE_DB_PASSWORD || process.env.DB_PASSWORD;
+
+if (!PROJECT_ID || !DB_PASSWORD) {
+  console.error(
+    "❌ بيانات ناقصة.\n" +
+    "   أضف في ملف .env:  SUPABASE_PROJECT_ID + SUPABASE_DB_PASSWORD\n" +
+    "   أو شغّل:  node scripts/create-request-notes-table.mjs \"كلمة_مرور_قاعدة_البيانات\""
+  );
+  process.exit(1);
+}
 
 const pool = new Pool({
-  host: "db.berprxhuguniggtnerfq.supabase.co",
+  host: `db.${PROJECT_ID}.supabase.co`,
   port: 5432,
   user: "postgres",
   password: DB_PASSWORD,
