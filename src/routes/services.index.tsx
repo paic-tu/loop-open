@@ -41,7 +41,7 @@ function ServicesIndex() {
 
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeading eyebrow="أقسام الخدمات" title="منظوماتنا الخدمية" />
+          <SectionHeading title="منظوماتنا الخدمية" />
           <div className="mt-12 grid gap-6 lg:grid-cols-2">
             {serviceCategories.map((c) => (
               <article key={c.slug} className="card-elevated flex h-full flex-col p-8">

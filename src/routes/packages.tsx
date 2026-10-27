@@ -64,7 +64,6 @@ function Packages() {
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="مقارنة"
             title="اختر الباقة المناسبة لمرحلة نمو كيانك"
             description="كل باقة تشمل جلسات استشارية ومتابعة تنفيذية من فريق أوبن لوب."
           />

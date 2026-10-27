@@ -62,7 +62,6 @@ function Careers() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="rounded-[2rem] border border-border/60 bg-card/70 p-6 shadow-[inset_0_1px_1px_rgb(255_255_255/10%)] backdrop-blur-xl sm:p-10">
           <SectionHeading
-            eyebrow="الانضمام إلينا"
             title="التقديمات المتاحة"
             description="ندعو الكفاءات والمستشارين والمستقلين للتسجيل في شبكة أوبن لوب وإكمال ملفاتهم المهنية، والتقديم على المشاريع المفتوحة فور إتاحتها."
           />

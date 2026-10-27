@@ -68,7 +68,6 @@ function Portfolio() {
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="أعمال مختارة"
             title="تصفّح حسب التصنيف"
             description="اختر التصنيف لعرض الأعمال المرتبطة به."
           />

@@ -140,7 +140,6 @@ function LibraryPage() {
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="تحميل مباشر"
             title="أحدث الملفات والنماذج"
             description="اختر الملف المناسب لجمعيتك وحمّله مباشرة دون تسجيل."
           />

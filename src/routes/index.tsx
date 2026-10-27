@@ -129,7 +129,6 @@ function Index() {
       <section className="section-pad">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="من نحن"
             title="عن أوبن لوب (Open Loop)"
             description="منذ انطلاقتنا، جمعت أوبن لوب نخبة من خبراء التسويق الرقمي، والاستشاريين، وصنّاع الأثر في القطاع الثالث؛ لسد الفجوة بين الأهداف المجتمعية النبيلة والنمو المؤسسي المستدام."
           />
@@ -153,7 +152,6 @@ function Index() {
       <section id="packages" className="section-pad bg-surface">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="مصفوفة الباقات"
             title="باقات مصممة لاحتياجات الكيانات غير الربحية"
             description="قارن بين الباقات واختر ما يناسب مرحلة نمو جمعيتك."
           />
@@ -173,7 +171,6 @@ function Index() {
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="المستهدف والأثر"
             title="أثرنا المستهدف حتى 2030"
             description="أرقام نعمل عليها مع شركائنا في القطاع الثالث لتحويل الفرص إلى استدامة حقيقية."
           />
@@ -211,7 +208,7 @@ function Index() {
       {/* PARTNERS */}
       <section className="section-pad bg-surface">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeading eyebrow="ثقة متبادلة" title="شركاء النجاح" />
+          <SectionHeading title="شركاء النجاح" />
         </div>
         <div className="mt-10">
           <PartnersMarquee

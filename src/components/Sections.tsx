@@ -4,13 +4,11 @@ import type { Pkg } from "@/data/site";
 
 
 export function SectionHeading({
-  eyebrow,
   title,
   description,
   align = "center",
   light = false,
 }: {
-  eyebrow?: string;
   title: string;
   description?: string;
   align?: "center" | "start";
@@ -18,16 +16,7 @@ export function SectionHeading({
 }) {
   return (
     <div className={`${align === "center" ? "mx-auto max-w-3xl text-center" : "max-w-3xl"}`}>
-      {eyebrow && (
-        <span
-          className={`inline-block rounded-full px-4 py-1.5 text-xs font-bold tracking-wide ${
-            light ? "bg-primary-foreground/10" : "bg-accent text-accent-foreground"
-          }`}
-        >
-          {eyebrow}
-        </span>
-      )}
-      <h2 className="mt-4 text-3xl font-extrabold leading-tight sm:text-4xl">{title}</h2>
+      <h2 className="text-3xl font-extrabold leading-tight sm:text-4xl">{title}</h2>
       {description && (
         <p className={`mt-4 text-base leading-relaxed ${light ? "opacity-80" : "text-muted-foreground"}`}>
           {description}

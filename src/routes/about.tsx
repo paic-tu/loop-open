@@ -63,7 +63,7 @@ function About() {
 
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <SectionHeading align="start" eyebrow="قصتنا" title="كيف بدأت أوبن لوب" />
+          <SectionHeading align="start" title="كيف بدأت أوبن لوب" />
           <p className="mt-6 max-w-4xl text-base leading-[2] text-muted-foreground">
             بدأت مؤسسة أوبن لوب.. كـ «ذراع استثماري وتنموي» لـ جمعية أرزاق لحفظ النعمة مع نخبة من
             خبراء التسويق الرقمي والاستشاريين وصنّاع الأثر. جاءت «أوبن لوب» لسد الفجوة بين الأهداف
@@ -98,7 +98,6 @@ function About() {
       <section className="section-pad">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <SectionHeading
-            eyebrow="المستهدف والأثر"
             title="أثرنا المستهدف حتى 2030"
             description="أرقام نعمل عليها مع شركائنا في القطاع الثالث لتحويل الفرص إلى استدامة حقيقية."
           />
