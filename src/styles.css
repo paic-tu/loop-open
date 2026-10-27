@@ -5,13 +5,13 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Open Loop design system — deep teal + petrol navy, Arabic-first (Tajawal).
+ * Open Loop design system — deep teal + petrol navy, Arabic-first (Cairo).
  * All colors are oklch semantic tokens. Never hardcode colors in components.
  */
 
 @theme inline {
-  --font-sans: "Tajawal", system-ui, sans-serif;
-  --font-display: "Tajawal", system-ui, sans-serif;
+  --font-sans: "Cairo", system-ui, sans-serif;
+  --font-display: "Cairo", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

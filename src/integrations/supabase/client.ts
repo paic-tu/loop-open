@@ -40,7 +40,7 @@ export function renderSupabaseSetupError(missing: string[]): string {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>إعدادات Supabase مطلوبة | أوبن لوب</title>
 <style>
-  *{box-sizing:border-box} html,body{margin:0;padding:0;font-family:Tajawal,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0d1921;color:#e6edf3}
+  *{box-sizing:border-box} html,body{margin:0;padding:0;font-family:Cairo,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#0d1921;color:#e6edf3}
   .wrap{min-height:100dvh;display:grid;place-items:center;padding:24px}
   .card{width:100%;max-width:640px;background:#13232e;border:1px solid #2F525788;border-radius:22px;padding:32px 28px;box-shadow:0 18px 60px rgba(0,0,0,.35)}
   .tag{display:inline-block;background:#E09F4822;color:#E09F48;border:1px solid #E09F4855;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:800;letter-spacing:.3px}
