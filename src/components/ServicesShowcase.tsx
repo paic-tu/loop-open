@@ -6,6 +6,10 @@ import {
   PenTool,
   Megaphone,
   Calculator,
+  UtensilsCrossed,
+  FileCheck2,
+  HeartHandshake,
+  HandCoins,
   ArrowLeft,
   ChevronRight,
   ChevronLeft,
@@ -32,6 +36,9 @@ const iconMap: Record<string, LucideIcon> = {
   marketing: Megaphone,
   tax: Calculator,
   catering: UtensilsCrossed,
+  etimad: FileCheck2,
+  projects: HeartHandshake,
+  ehsan: HandCoins,
 };
 
 function usePerPage() {
