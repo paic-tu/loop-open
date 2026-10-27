@@ -122,7 +122,7 @@ export type ServiceCategory = {
   description: string;
   items: string[];
   details?: ServiceDetail[];
-  iconName?: "resources" | "design" | "content" | "marketing" | "tax";
+  iconName?: "resources" | "design" | "content" | "marketing" | "tax" | "catering";
 };
 
 
@@ -219,6 +219,15 @@ export const serviceCategories: ServiceCategory[] = [
       "إعداد ورفع الإقرارات الضريبية (إضافة اختيارية / مستقلة)",
       "خدمة الاسترداد الضريبي للشخص المؤهل للاسترداد (طلب الاسترداد الضريبي الفعلي)",
     ],
+  },
+  {
+    slug: "catering",
+    order: "06",
+    title: "مشاريع الإعاشة",
+    iconName: "catering",
+    description:
+      "تنفيذ وتأمين مشاريع الإعاشة والمبادرات الميدانية وفق أعلى معايير الجودة والسلامة، لتصل مبادراتكم إلى مستحقيها بكفاءة عالية.",
+    items: ["سقيا ماء", "وجبات جاهزة ساخنة", "وجبات جافة"],
   },
 ];
 

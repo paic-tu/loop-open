@@ -37,20 +37,26 @@ export const Route = createFileRoute("/booking")({
   component: Booking,
 });
 
+const CATERING_SLUG = "catering";
+const CATERING_TYPES = ["سقيا ماء", "وجبات جاهزة ساخنة", "وجبات جافة"];
+
 const schema = z.object({
   fullName: z.string().trim().min(2, "الاسم مطلوب").max(100),
   entityName: z.string().trim().max(200).optional(),
   phone: z.string().trim().min(8, "رقم جوال غير صحيح").max(25),
   email: z.string().trim().email("بريد إلكتروني غير صحيح"),
-  service: z.string().trim().min(1, "يرجى اختيار مجال الاستشارة").max(100),
+  service: z.string().trim().min(1, "يرجى اختيار نوع المشروع").max(100),
   note: z.string().trim().max(3000, "التفاصيل طويلة جداً").optional(),
 });
 
 function Booking() {
   const [busy, setBusy] = useState(false);
   const [service, setService] = useState<string>("");
+  const [projectType, setProjectType] = useState<string>("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [done, setDone] = useState(false);
+
+  const isCatering = service === CATERING_SLUG;
 
   useEffect(() => {
     if (done) {
@@ -67,7 +73,7 @@ function Booking() {
       entityName: form.get("entityName"),
       phone: form.get("phone"),
       email: form.get("email"),
-      service,
+      service: isCatering ? projectType : service,
       note: form.get("note"),
     });
     if (!parsed.success) {
@@ -94,6 +100,7 @@ function Booking() {
     (e.target as HTMLFormElement).reset();
     setAttachment(null);
     setService("");
+    setProjectType("");
     setDone(true);
   };
 
@@ -161,21 +168,48 @@ function Booking() {
                 />
               </div>
               <div className="grid gap-2 sm:col-span-2">
-                <Label htmlFor="b-service">مجال الاستشارة</Label>
-                <Select value={service} onValueChange={setService}>
-                  <SelectTrigger id="b-service" className="w-full">
-                    <SelectValue placeholder="اختر المجال" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {serviceCategories.map((c) => (
-                      <SelectItem key={c.slug} value={c.slug}>
-                        {c.title}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="packages">الباقات والأسعار</SelectItem>
-                    <SelectItem value="other">غير محدد / استشارة عامة</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="b-service">نوع المشروع</Label>
+                {isCatering ? (
+                  <>
+                    <Select value={projectType} onValueChange={setProjectType}>
+                      <SelectTrigger id="b-service" className="w-full">
+                        <SelectValue placeholder="اختر نوع المشروع" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CATERING_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setService("");
+                        setProjectType("");
+                      }}
+                      className="justify-self-start text-xs font-semibold text-muted-foreground transition-colors hover:text-primary dark:hover:text-gold"
+                    >
+                      ← الرجوع لقائمة الخدمات
+                    </button>
+                  </>
+                ) : (
+                  <Select value={service} onValueChange={setService}>
+                    <SelectTrigger id="b-service" className="w-full">
+                      <SelectValue placeholder="اختر نوع المشروع" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serviceCategories.map((c) => (
+                        <SelectItem key={c.slug} value={c.slug}>
+                          {c.title}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="packages">الباقات والأسعار</SelectItem>
+                      <SelectItem value="other">غير محدد / استشارة عامة</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="b-note">تفاصيل الاحتياج</Label>

@@ -13,7 +13,6 @@ import { HeroSlider } from "@/components/HeroSlider";
 import { SectionHeading } from "@/components/Sections";
 import { PackagesCarousel } from "@/components/PackagesCarousel";
 import { PartnersMarquee } from "@/components/PartnersMarquee";
-import { CateringSection } from "@/components/CateringSection";
 import { ServicesShowcase } from "@/components/ServicesShowcase";
 import { JoinBanner } from "@/components/Footer";
 import { packages as fallbackPackages, type Pkg, partners as fallbackPartnerNames } from "@/data/site";
@@ -169,9 +168,6 @@ function Index() {
           )}
         </div>
       </section>
-
-      {/* CATERING */}
-      <CateringSection />
 
       {/* IMPACT */}
       <section className="section-pad">

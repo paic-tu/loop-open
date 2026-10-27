@@ -44,6 +44,10 @@ INSERT INTO public.cms_service_categories (slug, display_order, title, descripti
 VALUES ('tax', '05', 'خدمات الضريبة والاسترداد الضريبي للجمعيات', 'خدمات ضريبية متخصصة للكيانات غير الربحية: التأهيل للاسترداد الضريبي، والتسجيل في ضريبة القيمة المضافة، وإلغاء التسجيل، وإعداد الإقرارات، بشكل معتمد ومتوافق مع أنظمة هيئة الزكاة والضريبة والجمارك.', 'tax', true, 5)
 ON CONFLICT (slug) DO UPDATE SET updated_at = NOW();
 
+INSERT INTO public.cms_service_categories (slug, display_order, title, description, icon_name, is_published, sort_order)
+VALUES ('catering', '06', 'مشاريع الإعاشة', 'تنفيذ وتأمين مشاريع الإعاشة والمبادرات الميدانية وفق أعلى معايير الجودة والسلامة، لتصل مبادراتكم إلى مستحقيها بكفاءة عالية.', 'catering', true, 6)
+ON CONFLICT (slug) DO UPDATE SET updated_at = NOW();
+
 -- =====================================================================
 -- ٣. عناصر كل فئة خدمة (cms_service_items) — باستخدام subquery لكل فئة
 -- =====================================================================
@@ -127,6 +131,16 @@ FROM public.cms_service_categories c,
   ('خدمة الاسترداد الضريبي للشخص المؤهل للاسترداد (طلب الاسترداد الضريبي الفعلي)',  NULL, 5)
 ) AS t(title, description, sort_order)
 WHERE c.slug = 'tax';
+
+INSERT INTO public.cms_service_items (category_id, title, description, sort_order)
+SELECT c.id, t.title, t.description, t.sort_order
+FROM public.cms_service_categories c,
+(VALUES
+  ('سقيا ماء',              NULL, 1),
+  ('وجبات جاهزة ساخنة',    NULL, 2),
+  ('وجبات جافة',           NULL, 3)
+) AS t(title, description, sort_order)
+WHERE c.slug = 'catering';
 
 -- =====================================================================
 -- ٤. الباقات (cms_packages)

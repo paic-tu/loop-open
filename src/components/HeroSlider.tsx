@@ -51,7 +51,9 @@ const slides: Slide[] = [
     text: "مشاريع الإعاشة والحلول الميدانية (إفطار صائم، سقيا ماء، وسلال غذائية) بأعلى معايير السلامة.",
     actions: (
       <Button asChild size="lg" className="rounded-full px-7 text-base font-bold">
-        <a href="#catering">اطلب الخدمة الآن</a>
+        <Link to="/services/$category" params={{ category: "catering" }}>
+          اطلب الخدمة الآن
+        </Link>
       </Button>
     ),
   },

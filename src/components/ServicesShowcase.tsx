@@ -31,11 +31,7 @@ const iconMap: Record<string, LucideIcon> = {
   content: PenTool,
   marketing: Megaphone,
   tax: Calculator,
-  BarChart3,
-  Palette,
-  PenTool,
-  Megaphone,
-  Calculator,
+  catering: UtensilsCrossed,
 };
 
 function usePerPage() {
@@ -92,7 +88,7 @@ export function ServicesShowcase({ categories }: Props) {
         <SectionHeading
           eyebrow="منظومة الخدمات"
           title="خدماتنا المتميزة"
-          description="خمس منظومات خدمية متكاملة مصممة خصيصاً للجمعيات والمؤسسات الأهلية، من التأهيل للمنح إلى بناء الهوية والمحتوى والحملات."
+          description="منظومات خدمية متكاملة مصممة خصيصاً للجمعيات والمؤسسات الأهلية، من التأهيل للمنح إلى بناء الهوية والمحتوى والحملات ومشاريع الإعاشة."
         />
 
         <div className="mt-12">
