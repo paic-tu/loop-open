@@ -65,16 +65,12 @@ const iconByName: Record<string, LucideIcon> = {
 
 const segments = [
   {
-    title: "كيانات غير ربحية تبحث عن التمويل والمنح",
-    text: "صياغة مشاريع احترافية وتصميم ملفات متكاملة للمؤسسات المانحة وصندوق دعم الجمعيات.",
+    title: "الكيانات غير الربحية",
+    text: "الكيانات غير الربحية التي تبحث عن التمويل والمنح",
   },
   {
-    title: "كيانات غير ربحية تسعى لرفع الإيرادات",
-    text: "استفادة من منصات الدعم الحكومي والأهلي عبر التأهيل الفني والمالي والتنفيذي.",
-  },
-  {
-    title: "كيانات غير ربحية ترغب في نمو حضورها وتأثيرها",
-    text: "حلول تسويقية وإعلانية ممولة لجذب المانحين بثقة.",
+    title: "الكيانات غير الربحية",
+    text: "الكيانات غير الربحية التي تسعى إلى رفع حضورها وتأثيرها",
   },
 ];
 
@@ -130,7 +126,7 @@ function Index() {
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <SectionHeading
             title="عن أوبن لوب (Open Loop)"
-            description="منذ انطلاقتنا، جمعت أوبن لوب نخبة من خبراء التسويق الرقمي، والاستشاريين، وصنّاع الأثر في القطاع الثالث؛ لسد الفجوة بين الأهداف المجتمعية النبيلة والنمو المؤسسي المستدام."
+            description="منذ انطلاقتنا، عملت أوبن لوب في القطاع الثالث على سد الفجوة بين الأهداف المجتمعية النبيلة والنمو المؤسسي المستدام."
           />
           <Button
             asChild
@@ -189,10 +185,10 @@ function Index() {
           )}
 
           <div className="mt-16">
-            <SectionHeading title="حلولنا موجهة إلى الكيانات غير الربحية" />
-            <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            <SectionHeading title="حلولنا موجهة إلى" />
+            <div className="mx-auto mt-10 grid max-w-4xl gap-6 sm:grid-cols-2">
               {segments.map((s, idx) => (
-                <div key={s.title} className="card-elevated p-7">
+                <div key={s.text} className="card-elevated p-7">
                   <span className="grid h-11 w-11 place-items-center rounded-2xl bg-accent text-base font-extrabold text-accent-foreground">
                     {idx + 1}
                   </span>

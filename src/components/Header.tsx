@@ -15,7 +15,7 @@ const beforeServices = [
 const afterServices = [
   { to: "/packages", label: "الباقات" },
   { to: "/portfolio", label: "سابقة الأعمال" },
-  { to: "/library", label: "مكتبة أوبن لوب" },
+  { to: "/library", label: "المكتبة" },
   { to: "/community", label: "فُرص Open Loop" },
 
   

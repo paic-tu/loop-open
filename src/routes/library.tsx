@@ -34,13 +34,13 @@ export const Route = createFileRoute("/library")({
   staticData: { sitemap: true },
   head: () => ({
     meta: [
-      { title: "مكتبة أوبن لوب | أدلة ونماذج مجانية للقطاع غير الربحي" },
+      { title: "المكتبة | أوبن لوب — أدلة ونماذج مجانية للقطاع غير الربحي" },
       {
         name: "description",
         content:
           "مكتبة أوبن لوب: نماذج ولوائح وأدلة وأطر عمل مجانية قابلة للتحميل تساعد الجمعيات على الحوكمة والاستدامة المالية وبناء الأثر.",
       },
-      { property: "og:title", content: "مكتبة أوبن لوب — موارد مجانية للجمعيات" },
+      { property: "og:title", content: "المكتبة | أوبن لوب" },
       {
         property: "og:description",
         content: "حمّل نماذج ولوائح وأدلة وأطر عمل جاهزة مجاناً لتطوير عمل جمعيتك.",
@@ -128,12 +128,20 @@ function LibraryPage() {
             موارد مجانية
           </span>
           <h1 className="mt-6 max-w-3xl text-3xl font-extrabold leading-[1.35] sm:text-4xl">
-            مكتبة أوبن لوب
+            المكتبة
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed opacity-80 sm:text-base">
             نماذج ولوائح وأدلة وأطر عمل جاهزة للتحميل مجاناً، صُممت لمساعدة الجمعيات
             والمؤسسات الأهلية على رفع جاهزيتها المؤسسية وتسريع أثرها.
           </p>
+          <div className="mt-6 max-w-2xl rounded-2xl border border-gold/40 bg-gold/10 px-5 py-4">
+            <span className="inline-flex items-center rounded-full bg-gold px-3 py-1 text-xs font-extrabold text-gold-foreground">
+              قريبًا
+            </span>
+            <p className="mt-3 text-sm leading-relaxed opacity-90">
+              نعمل على تجهيز المكتبة لتقديم مجموعة من المنتجات والملفات الرقمية قريبًا.
+            </p>
+          </div>
         </div>
       </section>
 

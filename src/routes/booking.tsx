@@ -271,7 +271,10 @@ function Booking() {
             <CalendarClock className="h-8 w-8 text-primary dark:text-gold" aria-hidden />
             <h2 className="mt-4 text-lg font-extrabold">تواصل مباشر</h2>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              الأحد – الخميس، 8 صباحاً حتى 2:30 ظهراً.
+              الأحد إلى الخميس
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              سيقوم فريقنا بالرد خلال 24 ساعة
             </p>
             <ul className="mt-5 space-y-3 text-sm">
               <li className="flex items-center gap-2">
